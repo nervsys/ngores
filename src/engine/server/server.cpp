@@ -40,6 +40,10 @@
 #include <engine/shared/snapshot.h>
 #include <engine/storage.h>
 
+#include <game/server/gamecontext.h>
+#include <game/server/player.h>
+
+
 #include <game/version.h>
 
 #include <zlib.h>
@@ -578,6 +582,7 @@ int64_t CServer::TickStartTime(int Tick)
 	return m_GameStartTime + (time_freq() * Tick) / TickSpeed();
 }
 
+
 int CServer::Init()
 {
 	for(auto &Client : m_aClients)
@@ -657,6 +662,14 @@ int CServer::GetAuthedState(int ClientId) const
 	dbg_assert(ClientId >= 0 && ClientId < MAX_CLIENTS, "Invalid ClientId: %d", ClientId);
 	dbg_assert(m_aClients[ClientId].m_State != CServer::CClient::STATE_EMPTY, "Client slot %d is empty", ClientId);
 	return m_AuthManager.KeyLevel(m_aClients[ClientId].m_AuthKey);
+}
+
+bool CServer::IsAuthed(int ClientId)
+{
+	if(GetAuthedState(ClientId) < AUTHED_HELPER)
+		return false;
+
+	return true;
 }
 
 bool CServer::IsRconAuthed(int ClientId) const
@@ -4355,6 +4368,33 @@ void CServer::RegisterCommands()
 
 	Kernel()->RegisterInterface(static_cast<IHttp *>(&m_Http), false);
 
+	// ngores
+	Console()->Register("rainbow", "i[id] s[speed]", CFGFLAG_SERVER, ConRainbow, this, "Toggle rainbow mode at the specified speed for the given ID.");
+
+	Console()->Register("pulse", "i[id] s[speed]", CFGFLAG_SERVER, ConPulse, this, "Toggle rainbow black mode at the specified speed for the given ID.");
+
+	Console()->Register("trail", "i[id]", CFGFLAG_SERVER, ConTrail, this, "Toggle trail mode for the given ID.");
+
+	Console()->Register("stars", "?i", CFGFLAG_SERVER, ConStars, this, "Toggle stars trail mode for the given ID.");
+
+	Console()->Register("aurashotgun", "?i", CFGFLAG_SERVER, ConAuraShotgun, this, "Toggle aura shotgun mode for the given ID.");
+
+	Console()->Register("auragun", "?i", CFGFLAG_SERVER, ConAuraGun, this, "Toggle aura gun mode for the given ID.");
+
+	Console()->Register("auradot", "?i", CFGFLAG_SERVER, ConAuraDot, this, "Toggle aura dot mode for the given ID.");
+
+	Console()->Register("splash", "?i", CFGFLAG_SERVER, ConSplash, this, "Toggle splash effect mode for the given ID.");
+
+	Console()->Register("explosion", "?i", CFGFLAG_SERVER, ConExplosion, this, "Toggle explosion effect mode for the given ID.");
+
+	Console()->Register("guided_heart", "", CFGFLAG_SERVER, ConGuidedHeart, this, "Send a guided heart to the nearest player.");
+
+	Console()->Register("guided_shield", "", CFGFLAG_SERVER, ConGuidedShield, this, "Send a guided heart to the nearest player.");
+
+	Console()->Register("guided_ninja", "", CFGFLAG_SERVER, ConGuidedNinjaSword, this, "Send a guided heart to the nearest player.");
+
+	Console()->Register("soundtrack", "", CFGFLAG_SERVER, ConSoundtrack, this, "Send a guided heart to the nearest player.");
+
 	// register console commands
 	Console()->Register("kick", "i[id] ?r[reason]", CFGFLAG_SERVER, ConKick, this, "Kick player with specified id for any reason");
 	Console()->Register("status", "?r[name]", CFGFLAG_SERVER, ConStatus, this, "List players containing name or all players");
@@ -4602,4 +4642,585 @@ void CServer::SetLoggers(std::shared_ptr<ILogger> &&pFileLogger, std::shared_ptr
 {
 	m_pFileLogger = pFileLogger;
 	m_pStdoutLogger = pStdoutLogger;
+}
+
+// ngores
+void CServer::ConRainbow(IConsole::IResult *pResult, void *pUserData)
+{
+	CServer *pSelf = (CServer *)pUserData;
+	CGameContext *pGameServer = (CGameContext *)pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+
+	// check client id is valid
+    if(!CheckClientId(ClientId))
+        return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+	if(pResult->NumArguments() < 2) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"Use: rainbow <id> <speed>");
+		return;
+	}
+	
+	int TargetId = pResult->GetInteger(0);
+	int Speed = pResult->GetInteger(1);
+
+	if(!CheckClientId(TargetId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"Player not found or invalid.");
+		return;
+	}
+
+	if(Speed < 0 || Speed > 100) {
+		pGameCtx->SendChatTarget(ClientId, 
+			"Speed must be between 0 and 100");
+		return;
+	}
+
+	CPlayer *pPlayer = pGameCtx->m_apPlayers[TargetId];
+	if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+		pGameCtx->SendChatTarget(ClientId, "Player not found or invalid.");
+		return;
+	}
+
+	// desactive
+	if(Speed == 0) {
+		pPlayer->m_Powers.m_HasRainbow = false;
+		pPlayer->m_Powers.m_HasRainbowEnabled = false;
+		pPlayer->m_Powers.m_HasPulseEnabled = false;
+		return;
+	}
+
+	// active
+	pPlayer->m_Powers.m_HasRainbow = true;
+	pPlayer->m_Powers.m_HasRainbowEnabled = true;
+	pPlayer->m_Powers.m_HasPulseEnabled = false;
+	pPlayer->m_RainbowSpeed = Speed;
+
+	dbg_msg("rainbow", "Rainbow mode %s for player id %d with speed %d", pPlayer->m_Powers.m_HasRainbowEnabled ? "enabled" : "disabled", TargetId, Speed);
+}
+
+void CServer::ConPulse(IConsole::IResult *pResult, void *pUserData)
+{
+	CServer *pSelf = (CServer *)pUserData;
+	CGameContext *pGameServer = (CGameContext *)pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+
+	// check client id is valid
+    if(!CheckClientId(ClientId))
+        return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+	if(pResult->NumArguments() < 2) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"Use: pulse <id> <speed>");
+		return;
+	}
+
+	int TargetId = pResult->GetInteger(0);
+	int Speed = pResult->GetInteger(1);
+
+	if(Speed < 0 || Speed > 100) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"Speed must be between 0 and 100");
+		return;
+	}
+
+	CPlayer *pPlayer = pGameCtx->m_apPlayers[TargetId];
+	if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+		pGameCtx->SendChatTarget(ClientId, "Player not found or invalid.");
+		return;
+	}
+
+	// desactive
+	if(Speed == 0) {
+		pPlayer->m_Powers.m_HasPulse = false;
+		pPlayer->m_Powers.m_HasPulseEnabled = false;
+		pPlayer->m_Powers.m_HasRainbowEnabled = false;
+		return;
+	}
+
+	// active
+	pPlayer->m_Powers.m_HasPulse = true;
+	pPlayer->m_Powers.m_HasPulseEnabled = true;
+	pPlayer->m_Powers.m_HasRainbowEnabled = false;
+	pPlayer->m_RainbowSpeed = Speed;
+
+	dbg_msg("pulse", "Rainbow black mode %s for player id %d with speed %d", pPlayer->m_Powers.m_HasPulseEnabled ? "enabled" : "disabled", TargetId, Speed);
+}
+
+void CServer::ConTrail(IConsole::IResult *pResult, void *pUserData)
+{
+    CServer *pSelf = (CServer *)pUserData;
+    CGameContext *pGameServer = (CGameContext *)pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+    int ClientId = pResult->m_ClientId;
+	int TargetId = -1;
+
+	// check client id is valid
+    if(!CheckClientId(ClientId))
+        return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+    if(pResult->NumArguments() >= 1) {
+        TargetId = pResult->GetInteger(0);
+    }
+
+    if(!CheckClientId(TargetId)) {
+		pGameCtx->SendChatTarget(ClientId, 
+			"Invalid Id.");	
+        return;
+    }
+
+    CPlayer *pPlayer = pGameServer->m_apPlayers[TargetId];
+    if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+        pGameCtx->SendChatTarget(ClientId, "Player not found or invalid.");
+        return;
+    }
+
+	// enable the power and toggle
+    pPlayer->m_Powers.m_HasTrail = true;
+    pPlayer->m_Powers.m_HasTrailEnabled = !pPlayer->m_Powers.m_HasTrailEnabled;
+
+	dbg_msg("trail", "Trail mode %s for player id %d", pPlayer->m_Powers.m_HasTrailEnabled ? "enabled" : "disabled", TargetId);
+}
+
+void CServer::ConStars(IConsole::IResult *pResult, void *pUserData)
+{
+	CServer *pSelf = (CServer *)pUserData;
+	CGameContext *pGameServer = (CGameContext *)pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+	int TargetId = -1;
+
+	// check client id is valid
+	if(!CheckClientId(ClientId))
+		return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+    if(pResult->NumArguments() >= 1) {
+        TargetId = pResult->GetInteger(0);
+    }
+
+    if(!CheckClientId(TargetId)) {
+        pGameCtx->SendChatTarget(
+			ClientId, 
+			"Invalid Id.");
+        return;
+    }
+
+	CPlayer *pPlayer = pGameServer->m_apPlayers[TargetId];
+	if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+		pGameCtx->SendChatTarget(ClientId, "Player not found or invalid.");
+		return;
+	}
+
+	// enable the power and toggle
+	pPlayer->m_Powers.m_HasStar = true;
+	pPlayer->m_Powers.m_HasStarEnabled = !pPlayer->m_Powers.m_HasStarEnabled;
+
+	dbg_msg("stars", "Star mode %s for player id %d", pPlayer->m_Powers.m_HasStarEnabled ? "enabled" : "disabled", TargetId);
+}
+
+void CServer::ConSplash(IConsole::IResult *pResult, void *pUserData) 
+{
+	CServer *pSelf = (CServer *)pUserData;
+	CGameContext *pGameServer = (CGameContext *)pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+	int TargetId = -1;
+
+	// check client id is valid
+	if(!CheckClientId(ClientId))
+		return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+    if(pResult->NumArguments() >= 1) {
+        TargetId = pResult->GetInteger(0);
+    }
+
+    if(!CheckClientId(TargetId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"Invalid Id.");
+		return;
+    }
+
+	CPlayer *pPlayer = pGameServer->m_apPlayers[TargetId];
+	if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+		pGameCtx->SendChatTarget(ClientId, "Player not found or invalid.");
+		return;
+	}
+
+	// enable the power and toggle
+	pPlayer->m_Powers.m_HasSplash = true;
+	pPlayer->m_Powers.m_HasSplashEnabled = !pPlayer->m_Powers.m_HasSplashEnabled;
+
+	dbg_msg("splash", "Splash mode %s for player id %d", pPlayer->m_Powers.m_HasSplashEnabled ? "enabled" : "disabled", TargetId);
+}
+
+void CServer::ConExplosion(IConsole::IResult *pResult, void *pUserData)
+{
+	CServer *pSelf = (CServer *)pUserData;
+	CGameContext *pGameServer = (CGameContext *)pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+	int TargetId = -1;
+
+	// check client id is valid
+	if(!CheckClientId(ClientId))
+		return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+    if(pResult->NumArguments() >= 1) {
+        TargetId = pResult->GetInteger(0);
+    }
+
+    if(!CheckClientId(TargetId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"Invalid Id.");
+		return;
+    }
+
+	CPlayer *pPlayer = pGameServer->m_apPlayers[TargetId];
+	if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+		pGameCtx->SendChatTarget(ClientId, "Player not found or invalid.");
+		return;
+	}
+
+	// enable the power and toggle
+	pPlayer->m_Powers.m_HasExplosion = true;
+	pPlayer->m_Powers.m_HasExplosionEnabled = !pPlayer->m_Powers.m_HasExplosionEnabled;
+
+	dbg_msg("explosion", "Explosion mode %s for player id %d", pPlayer->m_Powers.m_HasExplosionEnabled ? "enabled" : "disabled", TargetId);
+}
+
+void CServer::ConSoundtrack(IConsole::IResult *pResult, void *pUserData) 
+{
+	CServer *pSelf = (CServer *)pUserData;
+	IGameServer *pGameServer = pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+
+	CPlayer *pPlayer = pGameCtx->m_apPlayers[ClientId];
+
+	// check client id is valid
+	if(!CheckClientId(ClientId))
+		return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+	if(!pPlayer->GetCharacter() || pPlayer->IsPaused())
+		return;
+
+	if(!pPlayer->m_PowersActivable.m_HasSoundtrack) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+	int64_t Now = pSelf->Tick();
+	int64_t TickSpeed = pSelf->TickSpeed();
+
+	int LastUsedTimeCooldown = pPlayer->m_PowersData.m_LastSoundtrackTick + (g_Config.m_SvEffectSoundtrackInterval * TickSpeed);
+
+	// check soundtrack cooldown
+	if(Now < LastUsedTimeCooldown)
+	{
+		int RemainingSecs = (LastUsedTimeCooldown - Now) / TickSpeed;
+
+		char aBuf[256];
+		str_format(
+			aBuf, sizeof(aBuf),
+			"Your soundtrack power is currently in cooldown. Please wait %d seconds.",
+			RemainingSecs);
+
+		pGameCtx->SendChatTarget(pResult->m_ClientId, aBuf);
+		return;
+	}
+
+	// put in cooldown and play soundtrack
+	pPlayer->m_PowersData.m_LastSoundtrackTick = Now;
+	pPlayer->DropSoundtrack();
+}
+
+void CServer::ConGuidedHeart(IConsole::IResult *pResult, void *pUserData)
+{
+	CServer *pSelf = (CServer *)pUserData;
+	CGameContext *pGameServer = (CGameContext *)pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+
+	// check client id is valid
+	if(!CheckClientId(ClientId))
+		return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+	CPlayer *pPlayer = pGameCtx->m_apPlayers[ClientId];
+	if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+		pGameServer->SendChatTarget(ClientId, "Player not found or invalid.");
+		return;
+	}
+
+	// execute the guided drop (to the nearest player)
+	pGameCtx->ExecuteDrop(
+		pResult, pGameCtx, EMOTICON_HEARTS, EMOTE_HAPPY, POWERUP_HEALTH, true);
+}
+
+
+
+
+void CServer::ConGuidedShield(IConsole::IResult *pResult, void *pUserData)
+{
+	CServer *pSelf = (CServer *)pUserData;
+	CGameContext *pGameServer = (CGameContext *)pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+
+	// check client id is valid
+	if(!CheckClientId(ClientId))
+		return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+	CPlayer *pPlayer = pGameCtx->m_apPlayers[ClientId];
+	if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+		pGameCtx->SendChatTarget(ClientId, "Player not found or invalid.");
+		return;
+	}
+
+	// execute the guided drop (to the nearest player)
+	pGameCtx->ExecuteDrop(
+		pResult, pGameCtx, EMOTICON_EYES, EMOTE_HAPPY, POWERUP_ARMOR, true);
+}
+
+void CServer::ConGuidedNinjaSword(IConsole::IResult *pResult, void *pUserData)
+{
+	CServer *pSelf = (CServer *)pUserData;
+	IGameServer *pGameServer = pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+
+	// check client id is valid
+	if(!CheckClientId(ClientId))
+		return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+	CPlayer *pPlayer = pGameCtx->m_apPlayers[ClientId];
+	if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+		pGameCtx->SendChatTarget(ClientId, "Player not found or invalid.");
+		return;
+	}
+
+	// execute the guided drop (to the nearest player)
+	pGameCtx->ExecuteDrop(
+		pResult, pGameCtx, EMOTICON_GHOST, EMOTE_SURPRISE, POWERUP_NINJA, true);
+}
+
+void CServer::ConAuraShotgun(IConsole::IResult *pResult, void *pUserData) 
+{
+	CServer *pSelf = (CServer *)pUserData;
+	CGameContext *pGameServer = (CGameContext *)pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+	int TargetId = -1;
+
+	// check client id is valid
+	if(!CheckClientId(ClientId))
+		return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+    if(pResult->NumArguments() >= 1) {
+        TargetId = pResult->GetInteger(0);
+    }
+
+    if(!CheckClientId(TargetId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"Invalid Id.");
+		return;
+    }
+
+	CPlayer *pPlayer = pGameServer->m_apPlayers[TargetId];
+	if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+		pGameCtx->SendChatTarget(ClientId, "Player not found or invalid.");
+		return;
+	}
+
+	// enable the power and toggle
+	pPlayer->m_Powers.m_HasAuraShotgun = true;
+	pPlayer->m_Powers.m_HasAuraShotgunEnabled = !pPlayer->m_Powers.m_HasAuraShotgunEnabled;
+
+	dbg_msg("auragun", "AuraShotgun mode %s for player id %d", pPlayer->m_Powers.m_HasAuraShotgunEnabled ? "enabled" : "disabled", TargetId);
+}
+
+void CServer::ConAuraGun(IConsole::IResult *pResult, void *pUserData) 
+{
+	CServer *pSelf = (CServer *)pUserData;
+	CGameContext *pGameServer = (CGameContext *)pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+	int TargetId = -1;
+
+	// check client id is valid
+	if(!CheckClientId(ClientId))
+		return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+    if(pResult->NumArguments() >= 1) {
+        TargetId = pResult->GetInteger(0);
+    }
+
+    if(!CheckClientId(TargetId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"Invalid Id.");
+		return;
+    }
+
+	CPlayer *pPlayer = pGameServer->m_apPlayers[TargetId];
+	if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+		pGameCtx->SendChatTarget(ClientId, "Player not found or invalid.");
+		return;
+	}
+
+	// enable the power and toggle
+	pPlayer->m_Powers.m_HasAuraGun = true;
+	pPlayer->m_Powers.m_HasAuraGunEnabled = !pPlayer->m_Powers.m_HasAuraGunEnabled;
+
+	dbg_msg("auragun", "AuraGun mode %s for player id %d", pPlayer->m_Powers.m_HasAuraGunEnabled ? "enabled" : "disabled", TargetId);
+}
+
+void CServer::ConAuraDot(IConsole::IResult *pResult, void *pUserData) 
+{
+	CServer *pSelf = (CServer *)pUserData;
+	CGameContext *pGameServer = (CGameContext *)pSelf->GameServer();
+	CGameContext *pGameCtx = (CGameContext *)pGameServer;
+	int ClientId = pResult->m_ClientId;
+	int TargetId = -1;
+
+	// check client id is valid
+	if(!CheckClientId(ClientId))
+		return;
+
+	// check is auth
+	if(!pSelf->IsAuthed(ClientId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"You do not have permission to use this command.");
+		return;
+	}
+
+    if(pResult->NumArguments() >= 1) {
+        TargetId = pResult->GetInteger(0);
+    }
+
+    if(!CheckClientId(TargetId)) {
+		pGameCtx->SendChatTarget(
+			pResult->m_ClientId,
+			"Invalid Id.");
+		return;
+    }
+
+	CPlayer *pPlayer = pGameServer->m_apPlayers[TargetId];
+	if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused()) {
+		pGameCtx->SendChatTarget(ClientId, "Player not found or invalid.");
+		return;
+	}
+
+	// enable the power and toggle
+	pPlayer->m_Powers.m_HasAuraDot = true;
+	pPlayer->m_Powers.m_HasAuraDotEnabled = !pPlayer->m_Powers.m_HasAuraDotEnabled;
+
+	dbg_msg("auradot", "AuraDot mode %s for player id %d", pPlayer->m_Powers.m_HasAuraDotEnabled ? "enabled" : "disabled", TargetId);
 }

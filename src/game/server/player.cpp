@@ -16,6 +16,13 @@
 #include <game/gamecore.h>
 #include <game/teamscore.h>
 
+#include "entities/aura.h"
+#include "entities/loot.h"
+#include "entities/soundtrack.h"
+#include "entities/star.h"
+#include "entities/trail.h"
+
+
 MACRO_ALLOC_POOL_ID_IMPL(CPlayer, MAX_CLIENTS)
 
 IServer *CPlayer::Server() const { return m_pGameServer->Server(); }
@@ -30,6 +37,7 @@ CPlayer::CPlayer(CGameContext *pGameServer, uint32_t UniqueClientId, int ClientI
 	m_NumInputs = 0;
 	Reset();
 	GameServer()->Antibot()->OnPlayerInit(m_ClientId);
+	m_RainbowSpeed = 1; // default speed
 }
 
 CPlayer::~CPlayer()
@@ -60,6 +68,69 @@ void CPlayer::Reset()
 		pIdMap[i] = -1;
 	}
 	pIdMap[0] = m_ClientId;
+
+	// ngores
+	m_ShowFlag = true;
+
+	// powers
+	m_Powers.m_HasRainbow = false;
+	m_Powers.m_HasRainbowEnabled = false;
+
+	m_Powers.m_HasPulse = false;
+	m_Powers.m_HasPulseEnabled = false;
+
+	m_Powers.m_HasSplash = false;
+	m_Powers.m_HasSplashEnabled = false;
+
+	m_Powers.m_HasExplosion = false;
+	m_Powers.m_HasExplosionEnabled = false;
+
+	m_Powers.m_HasSplashPistol = false;
+	m_Powers.m_HasSplashPistolEnabled = false;
+
+	m_Powers.m_HasExplosionPistol = false;
+	m_Powers.m_HasExplosionPistolEnabled = false;
+
+	m_Powers.m_HasStar = false;
+	m_Powers.m_HasStarEnabled = false;
+
+	m_Powers.m_HasAuraDot = false;
+	m_Powers.m_HasAuraDotEnabled = false;
+
+	m_Powers.m_HasAuraGun = false;
+	m_Powers.m_HasAuraGunEnabled = false;
+
+	m_Powers.m_HasAuraShotgun = false;
+	m_Powers.m_HasAuraShotgunEnabled = false;
+
+	m_Powers.m_HasTrail = false;
+	m_Powers.m_HasTrailEnabled = false;
+
+	m_PowersActivable.m_HasEmotion = false;
+	m_PowersActivable.m_HasSoundtrack = false;
+	m_PowersActivable.m_HasDropHeart = false;
+	m_PowersActivable.m_HasDropShield = false;
+	m_PowersActivable.m_HasDropNinjaSword = false;
+	m_PowersActivable.m_HasGuidedHeart = false;
+	m_PowersActivable.m_HasGuidedShield = false;
+	m_PowersActivable.m_HasGuidedNinjaSword = false;
+
+	m_PowersActivable.m_HasCarry = false;
+
+	// extra powers data
+	m_PowersData.m_RainbowColor = 0;
+	m_PowersData.m_RainbowPulse = 0;
+	m_PowersData.m_RainbowColorNumber = 0;
+
+	m_PowersData.m_LastCarryTick = 0;
+	m_PowersData.m_CarryTimeRemaining = 0;
+	m_PowersData.m_CarryCharacter = NULL;
+
+	m_PowersData.m_HasStarSpawned = false;
+	m_PowersData.m_HasAuraDotSpawned = false;
+	m_PowersData.m_HasAuraGunSpawned = false;
+	m_PowersData.m_HasAuraShotgunSpawned = false;
+	m_PowersData.m_HasTrailSpawned = false;
 
 	// DDRace
 
@@ -254,6 +325,61 @@ void CPlayer::Tick()
 		++m_TeamChangeTick;
 	}
 
+	// handle rainbow color change
+	if(m_Powers.m_HasRainbow && m_Powers.m_HasRainbowEnabled) {
+		m_PowersData.m_RainbowColor = (m_PowersData.m_RainbowColor + m_RainbowSpeed) % 256;
+		m_PowersData.m_RainbowColorNumber = m_PowersData.m_RainbowColor * 0x010000 + 0xff00;
+	}
+
+	if(m_Powers.m_HasPulse && m_Powers.m_HasPulseEnabled) {
+		m_PowersData.m_RainbowPulse = (m_PowersData.m_RainbowPulse + m_RainbowSpeed) % 511;
+		m_PowersData.m_RainbowColorNumber = ((m_PowersData.m_RainbowPulse > 255) ? 510 - m_PowersData.m_RainbowPulse : m_PowersData.m_RainbowPulse) * 1;
+	}
+
+	// handle star spawn
+	if(GetCharacter()) {
+		if(m_Powers.m_HasStar && m_Powers.m_HasStarEnabled)
+		{
+			if(!m_PowersData.m_HasStarSpawned)
+			{
+				new CStar(&GameServer()->m_World, m_ClientId);
+			}
+		}
+	}
+
+	// handle aura spawn
+	if(GetCharacter()) {
+		if(m_pCharacter->m_FreezeTime)
+		{
+			if(m_Powers.m_HasAuraDot && 
+				m_Powers.m_HasAuraDotEnabled && 
+				!m_PowersData.m_HasAuraDotSpawned) {
+				new CAura(&GameServer()->m_World, m_ClientId, g_Config.m_SvEffectAuraDotAmount, WEAPON_HAMMER, true);
+			}
+
+			if(m_Powers.m_HasAuraGun && 
+				m_Powers.m_HasAuraGunEnabled && 
+				!m_PowersData.m_HasAuraGunSpawned) {
+				new CAura(&GameServer()->m_World, m_ClientId, g_Config.m_SvEffectAuraGunAmount, WEAPON_GUN, true);
+			}
+			
+			if(m_Powers.m_HasAuraShotgun && 
+				m_Powers.m_HasAuraShotgunEnabled && 
+				!m_PowersData.m_HasAuraShotgunSpawned) {
+				new CAura(&GameServer()->m_World, m_ClientId, g_Config.m_SvEffectAuraShotgunAmount, WEAPON_SHOTGUN, true);
+			}
+		}
+	}
+
+	// handle trail spawn
+	if(GetCharacter()) {
+		if(m_Powers.m_HasTrail && 
+			m_Powers.m_HasTrailEnabled && 
+			!m_PowersData.m_HasTrailSpawned) {
+			new CTrail(&GameServer()->m_World, m_ClientId);
+		}
+	}
+
 	m_TuneZoneOld = m_TuneZone; // determine needed tunings with viewpos
 	int CurrentIndex = GameServer()->Collision()->GetMapIndex(m_ViewPos);
 	m_TuneZone = GameServer()->Collision()->IsTune(CurrentIndex);
@@ -326,6 +452,54 @@ void CPlayer::Snap(int SnappingClient)
 	pClientInfo->m_UseCustomColor = m_TeeInfos.m_UseCustomColor;
 	pClientInfo->m_ColorBody = m_TeeInfos.m_ColorBody;
 	pClientInfo->m_ColorFeet = m_TeeInfos.m_ColorFeet;
+
+	// ngores
+	bool hasRainbowApplied = (m_Powers.m_HasRainbow && m_Powers.m_HasRainbowEnabled) || (m_Powers.m_HasPulse && m_Powers.m_HasPulseEnabled);
+
+	// grantee tees are using custom colors
+	pClientInfo->m_UseCustomColor = hasRainbowApplied ? true : m_TeeInfos.m_UseCustomColor;
+
+	if(m_pGameServer->Server()->GetAuthedState(m_ClientId) >= AUTHED_HELPER) { 
+		// only helper+
+		m_Powers.m_HasRainbow = true;
+		m_Powers.m_HasStar = true;
+		m_Powers.m_HasAuraDot = true;
+		m_Powers.m_HasAuraGun = true;
+		m_Powers.m_HasAuraShotgun = true;
+		m_Powers.m_HasPulse = true;
+		m_Powers.m_HasExplosion = true;
+		m_Powers.m_HasExplosionPistol = true;
+		m_Powers.m_HasTrail = true;
+		m_Powers.m_HasSplashPistol = true;
+		m_Powers.m_HasSplash = true;
+
+		m_PowersActivable.m_HasEmotion = true;
+		m_PowersActivable.m_HasSoundtrack = true;
+		m_PowersActivable.m_HasDropHeart = true;
+		m_PowersActivable.m_HasDropShield = true;
+		m_PowersActivable.m_HasDropNinjaSword = true;
+		m_PowersActivable.m_HasGuidedHeart = true;
+		m_PowersActivable.m_HasGuidedShield = true;
+		m_PowersActivable.m_HasGuidedNinjaSword = true;
+	}
+
+	if (m_Powers.m_HasRainbow && m_Powers.m_HasRainbowEnabled) {
+		pClientInfo->m_UseCustomColor = true;
+		pClientInfo->m_ColorBody = m_PowersData.m_RainbowColorNumber;
+		pClientInfo->m_ColorFeet = m_PowersData.m_RainbowColorNumber;
+	}
+
+	else if (m_Powers.m_HasPulse && m_Powers.m_HasPulseEnabled) {
+		pClientInfo->m_UseCustomColor = true;
+		pClientInfo->m_ColorBody = m_PowersData.m_RainbowPulse;
+		pClientInfo->m_ColorFeet = m_PowersData.m_RainbowPulse;
+	}
+
+	else {
+		pClientInfo->m_UseCustomColor = m_TeeInfos.m_UseCustomColor;
+		pClientInfo->m_ColorBody = m_TeeInfos.m_ColorBody;
+		pClientInfo->m_ColorFeet = m_TeeInfos.m_ColorFeet;
+	}
 
 	int SnappingClientVersion = GameServer()->GetClientVersion(SnappingClient);
 	int Latency = SnappingClient == SERVER_DEMO_CLIENT ? m_Latency.m_Min : GameServer()->m_apPlayers[SnappingClient]->m_aCurLatency[m_ClientId];
@@ -811,8 +985,7 @@ void CPlayer::ProcessPause()
 	if(m_Paused == PAUSE_SPEC && !m_pCharacter->IsPaused() && CanSpec())
 	{
 		m_pCharacter->Pause(true);
-		GameServer()->CreateDeath(m_pCharacter->m_Pos, m_ClientId, GameServer()->m_pController->GetMaskForPlayerWorldEvent(m_ClientId));
-		GameServer()->CreateSound(m_pCharacter->m_Pos, SOUND_PLAYER_DIE, GameServer()->m_pController->GetMaskForPlayerWorldEvent(m_ClientId));
+		ProcessPauseEffect(); // splash & explosion effect
 	}
 }
 
@@ -1036,3 +1209,68 @@ void CPlayer::CCameraInfo::Reset()
 	m_Deadzone = 0.0f;
 	m_FollowFactor = 0.0f;
 }
+
+// ngores
+void CPlayer::ProcessPauseEffect()
+{
+	if(m_Powers.m_HasSplash && m_Powers.m_HasSplashEnabled) 
+	{
+		GameServer()->CreateDeath(m_pCharacter->m_Pos, m_ClientId, GameServer()->m_pController->GetMaskForPlayerWorldEvent(m_ClientId));
+	}
+	
+	if(m_Powers.m_HasExplosion && m_Powers.m_HasExplosionEnabled) 
+	{
+		GameServer()->CreateExplosionEvent(m_pCharacter->m_Pos, GameServer()->m_pController->GetMaskForPlayerWorldEvent(m_ClientId));
+	}
+}
+
+bool CPlayer::DropLoot(int LootType, bool Guided)
+{
+    CCharacter *pChr = GetCharacter();
+    if(!pChr)
+        return false;
+
+	// check player is on solo
+    if(pChr->GetCore().m_Solo) {
+        GameServer()->SendChatTarget(GetCid(),
+            "You cannot drop something on solo.");
+        return false;
+    }
+
+    auto *pCol = GameServer()->Collision();
+
+    const float xPos = (pChr->GetLastSightInput().x < 0) ? -50.0f : 50.0f;
+    vec2 basePos = pChr->m_Pos + vec2(xPos, 0.0f);
+
+    // check if the drop position center is obstructed
+    if(pCol->CheckPoint(basePos)) {
+        GameServer()->SendChatTarget(GetCid(),
+            "You cannot drop something in an obstructed place.");
+        return false;
+    }
+
+    // check up/down
+    bool CheckTop    = pCol->CheckPoint(basePos + vec2(0, -25.0f));
+    bool CheckBottom = pCol->CheckPoint(basePos + vec2(0,  25.0f));
+
+    float yOffset = 0.0f;
+
+    if(CheckTop && !CheckBottom)
+        yOffset = 25.0f;
+    else if(!CheckTop)
+        yOffset = -25.0f;
+
+    vec2 dropPos = basePos + vec2(0, yOffset);
+
+    new CLoot(&GameServer()->m_World, m_ClientId, Server()->ClientName(m_ClientId),
+              pChr->Team(), dropPos, LootType, true, Guided);
+
+    return true;
+}
+
+bool CPlayer::DropSoundtrack()
+{
+	new CSoundtrack(&GameServer()->m_World, m_ClientId);
+	return true;
+}
+

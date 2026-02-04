@@ -21,6 +21,10 @@
 #include <game/server/score.h>
 #include <game/teamscore.h>
 
+#include <string>
+std::string g_RecordHolderName = "";
+float g_BestTimeRecord = 0.0f;
+
 IGameController::IGameController(class CGameContext *pGameServer) :
 	m_Teams(pGameServer), m_pLoadBestTimeResult(nullptr)
 {
@@ -679,18 +683,8 @@ void IGameController::Snap(int SnappingClient)
 
 	GameServer()->SnapSwitchers(SnappingClient);
 
-	if(!Server()->IsSixup(SnappingClient) && GameServer()->GetClientVersion(SnappingClient) >= VERSION_DDNET_MAP_BESTTIME)
-	{
-		CFinishTime MapTime = SnapMapBestTime(SnappingClient);
-		if(MapTime.m_Seconds != FinishTime::UNSET)
-		{
-			CNetObj_MapBestTime *pMapTimeMsg = Server()->SnapNewItem<CNetObj_MapBestTime>(0);
-			if(!pMapTimeMsg)
-				return;
-			pMapTimeMsg->m_MapBestTimeSeconds = MapTime.m_Seconds;
-			pMapTimeMsg->m_MapBestTimeMillis = MapTime.m_Milliseconds;
-		}
-	}
+	// ngores
+	SnapFlags(SnappingClient);
 }
 
 int IGameController::GetAutoTeam(int NotThisId)
@@ -776,3 +770,140 @@ int IGameController::TileFlagsToPickupFlags(int TileFlags) const
 		PickupFlags |= PICKUPFLAG_ROTATE;
 	return PickupFlags;
 }
+
+// ngores
+void IGameController::UpdateRecordFlag()
+{
+	if(!g_RecordHolderName.empty()) {
+		// only copy if is different
+		if(str_comp(m_CurrentRecordHolder, g_RecordHolderName.c_str()) != 0) {
+			str_copy(m_CurrentRecordHolder, g_RecordHolderName.c_str(), sizeof(m_CurrentRecordHolder));
+		}
+	}
+
+	// if a record holder has not yet been defined, exit
+	if(m_CurrentRecordHolder[0] == '\0') {
+		dbg_msg("record_flag", "No record holder has been determined yet.");
+		return;
+	}
+
+	CCharacter *RecordChar = nullptr;
+
+	for(int i = 0; i < MAX_CLIENTS; i++)
+	{
+		CPlayer *pPlayer = GameServer()->m_apPlayers[i];
+		if(!pPlayer || !pPlayer->GetCharacter())
+			continue;
+
+		const char *pName = Server()->ClientName(i);
+		if(!pName)
+			continue;
+
+		if(str_comp(pName, m_CurrentRecordHolder) == 0) {
+			RecordChar = pPlayer->GetCharacter();
+			dbg_msg("record_flag", "Record holder '%s' found online. (cid=%d).", pName, i);
+			break;
+		}
+	}
+
+	// adjusts the flag pointer
+	m_pRecordFlagChar = RecordChar;
+
+	if(!RecordChar)
+		dbg_msg("record_flag", "Record holder '%s' is not online.", m_CurrentRecordHolder);
+}
+
+// returns the ID of the player who should display the flag
+int IGameController::SnapRecordFlag(int SnappingClient)
+{
+    if(!m_pRecordFlagChar)
+        return FLAG_MISSING;
+
+    CPlayer *pFlagOwner = m_pRecordFlagChar->GetPlayer();
+    if(!pFlagOwner)
+        return FLAG_MISSING;
+
+    CPlayer *pSnapPlayer = GameServer()->m_apPlayers[SnappingClient];
+    if(!pSnapPlayer)
+        return FLAG_MISSING;
+
+    CCharacter *pSnapChar = pSnapPlayer->GetCharacter();
+
+    // flag out of client view
+    if(pSnapChar && m_pRecordFlagChar && pSnapChar->NetworkClipped(SnappingClient, m_pRecordFlagChar->m_Pos))
+        return pFlagOwner->GetCid();
+
+    // flag owner can't show
+    if(!pFlagOwner->m_ShowFlag)	
+        return pFlagOwner->GetCid();
+
+    // flag owner paused on the ground
+    CCharacter *pOwnerChar = pFlagOwner->GetCharacter();
+    if(pFlagOwner->IsPaused() == -2 && pOwnerChar && pOwnerChar->IsGrounded() &&
+       distance(pOwnerChar->m_Pos, pOwnerChar->m_PrevPos) < 0.1f)
+    {
+        return pFlagOwner->GetCid();
+    }
+
+    // team visibility (don't apply to demo client)
+    if(SnappingClient != SERVER_DEMO_CLIENT)
+    {
+        if(m_pRecordFlagChar && m_pRecordFlagChar->Teams())
+        {
+            int Asker = pFlagOwner ? pFlagOwner->GetCid() : -1;
+            CClientMask TeamMask = m_pRecordFlagChar->Teams()->TeamMask(
+                m_pRecordFlagChar->Team(),
+                -1,
+                Asker
+            );
+
+            if(!TeamMask.test(SnappingClient))
+                return pFlagOwner->GetCid();
+        }
+    }
+
+    // create the flag
+    CNetObj_Flag *pFlag = (CNetObj_Flag *)Server()->SnapNewItem(
+        NETOBJTYPE_FLAG,
+        TEAM_BLUE,
+        sizeof(CNetObj_Flag)
+    );
+    if(!pFlag)
+        return pFlagOwner->GetCid();
+
+    pFlag->m_X = (int)m_pRecordFlagChar->m_Pos.x;
+    pFlag->m_Y = (int)m_pRecordFlagChar->m_Pos.y;
+    pFlag->m_Team = TEAM_BLUE;
+
+    return pFlagOwner->GetCid();
+}
+
+// general snap flags
+void IGameController::SnapFlags(int SnappingClient)
+{
+    if(Server()->IsSixup(SnappingClient))
+    {
+        int *pGameDataFlag = (int *)Server()->SnapNewItem(8 + 26, 0, 4 * 4); // NETOBJTYPE_GAMEDATAFLAG
+        if(!pGameDataFlag)
+            return;
+
+        pGameDataFlag[0] = FLAG_MISSING;
+        pGameDataFlag[1] = SnapRecordFlag(SnappingClient);
+        pGameDataFlag[2] = 0;
+        pGameDataFlag[3] = 0;
+    }
+    else
+    {
+        CNetObj_GameData *pGameDataObj = (CNetObj_GameData *)Server()->SnapNewItem(NETOBJTYPE_GAMEDATA, 0, sizeof(CNetObj_GameData));
+        if(!pGameDataObj)
+            return;
+
+        pGameDataObj->m_TeamscoreRed = 0;
+        pGameDataObj->m_TeamscoreBlue = 0;
+        pGameDataObj->m_FlagCarrierRed = FLAG_MISSING;
+        pGameDataObj->m_FlagCarrierBlue = SnapRecordFlag(SnappingClient);
+    }
+}
+
+
+

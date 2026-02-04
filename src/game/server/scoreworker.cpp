@@ -10,6 +10,8 @@
 
 #include <cmath>
 
+#include "gamecontroller.h"
+
 // "6b407e81-8b77-3e04-a207-8da17f37d000"
 // "save-no-save-id@ddnet.tw"
 static const CUuid UUID_NO_SAVE_ID =
@@ -150,7 +152,7 @@ bool CScoreWorker::LoadBestTime(IDbConnection *pSqlServer, const ISqlData *pGame
 	char aBuf[512];
 	// get the best time
 	str_format(aBuf, sizeof(aBuf),
-		"SELECT Time FROM %s_race WHERE Map=? ORDER BY `Time` ASC LIMIT 1",
+		"SELECT Name, Time FROM %s_race WHERE Map=? ORDER BY `Time` ASC LIMIT 1",
 		pSqlServer->GetPrefix());
 	if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
 	{
@@ -165,9 +167,21 @@ bool CScoreWorker::LoadBestTime(IDbConnection *pSqlServer, const ISqlData *pGame
 	}
 	if(!End)
 	{
-		pResult->m_CurrentRecord = pSqlServer->GetFloat(1);
+	pSqlServer->GetString(1, pResult->m_aPlayerName, sizeof(pResult->m_aPlayerName));
+	pResult->m_CurrentRecord = pSqlServer->GetFloat(2);
+
+	str_copy(pResult->m_aCurrentRecordHolder, pResult->m_aPlayerName, sizeof(pResult->m_aCurrentRecordHolder));
+
+	dbg_msg("record_flag", "Best map time '%s' is %.2f by '%s'",
+		pData->m_aMap, *pResult->m_CurrentRecord, pResult->m_aPlayerName);
+		
+	g_RecordHolderName = pResult->m_aPlayerName;
+	g_BestTimeRecord = *pResult->m_CurrentRecord;
+	
+	pResult->m_Completed = true; // mark that the result is ready
 	}
 
+	pResult->m_Completed = true;
 	return true;
 }
 

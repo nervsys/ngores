@@ -133,6 +133,31 @@ class CGameContext : public IGameServer
 	static void CommandCallback(int ClientId, int FlagMask, const char *pCmd, IConsole::IResult *pResult, void *pUser);
 	static void TeeHistorianWrite(const void *pData, int DataSize, void *pUser);
 
+	// ngores
+	static void ConShowFlag(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConPower(IConsole::IResult *pResult, void *pUserData);
+	static void ConPowerInfo(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConHeart(IConsole::IResult *pResult, void *pUserData);
+	static void ConShield(IConsole::IResult *pResult, void *pUserData);
+	static void ConNinjaSword(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConCry(IConsole::IResult *pResult, void *pUserData);
+	static void ConAngry(IConsole::IResult *pResult, void *pUserData);
+	static void ConHappy(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConSoundtrack(IConsole::IResult *pResult, void *pUserData);
+	static void ConCarry(IConsole::IResult *pResult, void *pUserData);
+	static void ConStopCarry(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConSuperHeart(IConsole::IResult *pResult, void *pUserData);
+	static void ConGuidedSuperHeart(IConsole::IResult *pResult, void *pUserData);
+
+	static void ExecuteSuperHeart(IConsole::IResult *pResult, void *pUserData, bool Guided);
+	static void ExecuteEmotion(IConsole::IResult *pResult, void *pUserData, int Emoticon, int Emote, int SoundID);
+	// finish gnores
+
 	static void ConTuneParam(IConsole::IResult *pResult, void *pUserData);
 	static void ConToggleTuneParam(IConsole::IResult *pResult, void *pUserData);
 	static void ConTuneReset(IConsole::IResult *pResult, void *pUserData);
@@ -188,6 +213,11 @@ class CGameContext : public IGameServer
 	};
 
 public:
+
+	// ngores
+	static void ExecuteDrop(IConsole::IResult *pResult, void *pUserData, int Emoticon, int Emote, int DropType, bool Guided);
+	//
+	
 	IServer *Server() const { return m_pServer; }
 	IConfigManager *ConfigManager() const { return m_pConfigManager; }
 	CConfig *Config() { return m_pConfig; }
@@ -281,6 +311,9 @@ public:
 	void CreateFinishEffect(vec2 Pos, CClientMask Mask = CClientMask().set());
 	void CreateSound(vec2 Pos, int Sound, CClientMask Mask = CClientMask().set());
 	void CreateSoundGlobal(int Sound, int Target = -1) const;
+
+	// ngores
+	void CreateExplosionEvent(vec2 Pos, CClientMask Mask = CClientMask().set());
 
 	void SnapSwitchers(int SnappingClient);
 	bool SnapLaserObject(const CSnapContext &Context, int SnapId, const vec2 &To, const vec2 &From, int StartTick, int Owner = -1, int LaserType = -1, int Subtype = -1, int SwitchNumber = -1) const;
@@ -651,5 +684,12 @@ static inline bool CheckClientId(int ClientId)
 {
 	return ClientId >= 0 && ClientId < MAX_CLIENTS;
 }
+
+// ngores
+inline int64_t CmaskAll() { return -1LL; }
+inline int64_t CmaskOne(int ClientId) { return 1LL << ClientId; }
+inline int64_t CmaskUnset(int64_t Mask, int ClientId) { return Mask ^ CmaskOne(ClientId); }
+inline int64_t CmaskAllExceptOne(int ClientId) { return CmaskUnset(CmaskAll(), ClientId); }
+inline bool CmaskIsSet(int64_t Mask, int ClientId) { return (Mask & CmaskOne(ClientId)) != 0; }
 
 #endif

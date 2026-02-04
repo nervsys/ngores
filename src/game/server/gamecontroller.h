@@ -13,6 +13,10 @@
 
 #include <game/server/teams.h>
 
+extern std::string g_RecordHolderName;
+extern float g_BestTimeRecord;
+
+
 struct CScoreLoadBestTimeResult;
 
 /*
@@ -220,6 +224,18 @@ public:
 	std::optional<float> m_CurrentRecord;
 	CGameTeams &Teams() { return m_Teams; }
 	std::shared_ptr<CScoreLoadBestTimeResult> m_pLoadBestTimeResult;
+
+	// ngores
+	int SnapRecordFlag(int SnappingClient);
+	int SnapFastcapFlag(int SnappingClient);
+	void SnapFlags(int SnappingClient);
+	void SetRecordFlagForPlayer(CPlayer *pPlayer);
+
+	char m_CurrentRecordHolder[16];
+	float m_BestTime = 0.0f;
+
+	CCharacter *m_pRecordFlagChar;
+	void UpdateRecordFlag();
 };
 
 #endif

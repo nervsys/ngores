@@ -34,6 +34,9 @@ class CCharacter : public CEntity
 public:
 	CCharacter(CGameWorld *pWorld, CNetObj_PlayerInput LastInput);
 
+	// ngores
+	const CNetObj_PlayerInput &GetLatestInput() const { return m_LatestInput; }
+
 	void Reset() override;
 	void Destroy() override;
 	void PreTick();
@@ -101,6 +104,14 @@ public:
 	bool IsPaused() const { return m_Paused; }
 	class CPlayer *GetPlayer() { return m_pPlayer; }
 	CClientMask TeamMask();
+
+	// ngores
+	void SetCollideOthers(bool on);
+	void SetHitOthers(bool on);
+	vec2 GetLastSightInput();
+
+	// carry effect
+	bool m_BeingCarried;
 
 	void SetPosition(const vec2 &Position);
 	void Move(vec2 RelPos);

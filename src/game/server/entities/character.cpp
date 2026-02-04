@@ -2575,5 +2575,51 @@ void CCharacter::ApplyMoveRestrictions()
 void CCharacter::SwapClients(int Client1, int Client2)
 {
 	const int HookedPlayer = m_Core.HookedPlayer();
-	m_Core.SetHookedPlayer(HookedPlayer == Client1 ? Client2 : (HookedPlayer == Client2 ? Client1 : HookedPlayer));
+	m_Core.SetHookedPlayer(HookedPlayer == Client1 ? Client2 : HookedPlayer == Client2 ? Client1 : HookedPlayer);
+}
+
+// ngores
+
+// OpenGores
+vec2 CCharacter::GetLastSightInput()
+{
+	return normalize(vec2(m_LatestInput.m_TargetX, m_LatestInput.m_TargetY));
+}
+
+void CCharacter::SetCollideOthers(bool on)
+{
+	bool disable = !on;
+	if(m_Core.m_CollisionDisabled == disable)
+		return;
+
+	m_Core.m_CollisionDisabled = disable;
+	if(disable)
+		m_NeededFaketuning &= ~FAKETUNE_NOCOLL;
+	else
+		m_NeededFaketuning |= FAKETUNE_NOCOLL;
+	GameServer()->SendTuningParams(m_pPlayer->GetCid(), m_TuneZone); // update tunings
+}
+
+void CCharacter::SetHitOthers(bool on)
+{
+	if(on)
+	{
+		m_Core.m_HammerHitDisabled = false;
+		m_Core.m_ShotgunHitDisabled = false;
+		m_Core.m_GrenadeHitDisabled = false;
+		m_Core.m_LaserHitDisabled = false;
+	}
+	else
+	{
+		m_Core.m_HammerHitDisabled = true;
+		m_Core.m_ShotgunHitDisabled = true;
+		m_Core.m_GrenadeHitDisabled = true;
+		m_Core.m_LaserHitDisabled = true;
+	}
+
+	if(on)
+		m_NeededFaketuning &= ~FAKETUNE_NOHAMMER;
+	else
+		m_NeededFaketuning |= FAKETUNE_NOHAMMER;
+	GameServer()->SendTuningParams(m_pPlayer->GetCid(), m_TuneZone); // update tunings
 }

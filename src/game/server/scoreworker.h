@@ -64,9 +64,26 @@ struct CScorePlayerResult : ISqlResult
 	void SetVariant(Variant v);
 };
 
+// ngores
+struct CScoreInitResult : ISqlResult
+{
+	CScoreInitResult() :
+		m_CurrentRecord(0)
+	{
+	}
+	float m_CurrentRecord;
+
+	// ngores
+	char m_CurrentRecordHolder[16];
+};
+
 struct CScoreLoadBestTimeResult : ISqlResult
 {
 	std::optional<float> m_CurrentRecord = std::nullopt;
+	// ngores
+	char m_aPlayerName[32] = {0};
+	char m_aCurrentRecordHolder[MAX_NAME_LENGTH];
+	bool m_Completed = false;
 };
 
 struct CSqlLoadBestTimeRequest : ISqlData
@@ -289,6 +306,10 @@ struct CTeamrank
 
 struct CScoreWorker
 {
+	// ngores
+	static bool Init(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
+	//
+
 	static bool LoadBestTime(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 
 	static bool RandomMap(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);

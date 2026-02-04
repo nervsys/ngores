@@ -2549,3 +2549,142 @@ void CGameContext::ConTimeCP(IConsole::IResult *pResult, void *pUserData)
 	const char *pName = pResult->GetString(0);
 	pSelf->Score()->LoadPlayerTimeCp(pResult->m_ClientId, pName);
 }
+
+// ngores
+
+void CGameContext::ExecuteDrop(IConsole::IResult *pResult, void *pUserData, int Emoticon, int Emote, int DropType, bool Guided)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if(!pPlayer->GetCharacter() || pPlayer->IsPaused())
+		return;
+
+	int64_t Now = pSelf->Server()->Tick();
+	int64_t TickSpeed = pSelf->Server()->TickSpeed();
+
+	int LastUsedTimeCooldown = pPlayer->m_PowersData.m_LastDropTick + (g_Config.m_SvEffectLootInterval * TickSpeed);
+
+	// check drop cooldown
+	if(Now < LastUsedTimeCooldown && pSelf->Server()->GetAuthedState(pResult->m_ClientId) < AUTHED_MOD)
+	{
+		int RemainingSecs = (LastUsedTimeCooldown - Now) / TickSpeed;
+
+		char aBuf[256];
+		str_format(
+			aBuf, sizeof(aBuf),
+			"Your drop power is currently in cooldown. Please wait %d seconds.",
+			RemainingSecs);
+
+		pSelf->SendChatTarget(pPlayer->GetCid(), aBuf);
+		return;
+	}
+
+
+	// Send emoji and eye
+	pSelf->SendEmoticon(pPlayer->GetCid(), Emoticon, -1); //fixed
+	pPlayer->GetCharacter()->SetEmote(Emote, Now + 2 * TickSpeed);
+
+	// put in cooldown and spawn loot
+	if(pPlayer->DropLoot(DropType, Guided))
+	{
+		pPlayer->m_PowersData.m_LastDropTick = Now;
+	}
+}
+
+void CGameContext::ExecuteEmotion(IConsole::IResult *pResult, void *pUserData, int Emoticon, int Emote, int SoundID)
+{
+    CGameContext *pSelf = (CGameContext *)pUserData;
+    if(!CheckClientId(pResult->m_ClientId))
+        return;
+
+    CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+    if(!pPlayer || !pPlayer->GetCharacter() || pPlayer->IsPaused())
+        return;
+
+    int64_t Now = pSelf->Server()->Tick();
+    int64_t TickSpeed = pSelf->Server()->TickSpeed();
+
+    pSelf->SendEmoticon(pPlayer->GetCid(), Emoticon, -1); // fixed
+    pPlayer->GetCharacter()->SetEmote(Emote, Now + 2 * TickSpeed);
+
+    if(Now > pPlayer->m_PowersData.m_LastEmotionTick + (g_Config.m_SvEffectEmotionInterval * TickSpeed))
+    {
+        pPlayer->m_PowersData.m_LastEmotionTick = Now;
+
+        // NOVO: CClientMask (bitset)
+        CClientMask TeamMask = pPlayer->GetCharacter()->Teams()->TeamMask(
+            pPlayer->GetCharacter()->Team(),
+            -1,
+            pPlayer->GetCid()
+        );
+
+        // ddnet atual usa mask direto
+        pSelf->CreateSound(pPlayer->GetCharacter()->m_Pos, SoundID, TeamMask);
+    }
+}
+
+
+void CGameContext::ConCry(IConsole::IResult *pResult, void *pUserData)
+{
+	ExecuteEmotion(pResult, pUserData, EMOTICON_DROP, EMOTE_BLINK, SOUND_TEE_CRY);
+}
+
+void CGameContext::ConAngry(IConsole::IResult *pResult, void *pUserData)
+{
+	ExecuteEmotion(pResult, pUserData, EMOTICON_ZOMG, EMOTE_ANGRY, SOUND_PLAYER_PAIN_LONG);
+}
+
+void CGameContext::ConHappy(IConsole::IResult *pResult, void *pUserData)
+{
+	ExecuteEmotion(pResult, pUserData, EMOTICON_EYES, EMOTE_HAPPY, SOUND_PLAYER_SPAWN);
+}
+
+void CGameContext::ConHeart(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if(!pPlayer->GetCharacter() || pPlayer->IsPaused())
+		return;
+
+	if(!pPlayer->m_PowersActivable.m_HasDropHeart)
+	{
+		pSelf->SendChatTarget(
+			pPlayer->GetCid(),
+			"You do not have permission to use this command.");
+
+		return;
+	}
+
+	ExecuteDrop(pResult, pUserData, EMOTICON_HEARTS, EMOTE_HAPPY, POWERUP_HEALTH, false);
+}
+
+void CGameContext::ConShield(IConsole::IResult *pResult, void *pUserData)
+{
+	CGameContext *pSelf = (CGameContext *)pUserData;
+	if(!CheckClientId(pResult->m_ClientId))
+		return;
+
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if(!pPlayer->GetCharacter() || pPlayer->IsPaused())
+		return;
+
+	if(!pPlayer->m_PowersActivable.m_HasDropHeart)
+	{
+		pSelf->SendChatTarget(
+			pPlayer->GetCid(),
+			"You do not have permission to use this command.");
+
+		return;
+	}
+
+	ExecuteDrop(pResult, pUserData, EMOTICON_EYES, EMOTE_HAPPY, POWERUP_ARMOR, false);
+}

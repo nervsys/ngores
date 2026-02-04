@@ -61,6 +61,12 @@ public:
 
 	void SpectatePlayerName(const char *pName);
 
+	// ngores
+	void ProcessPauseEffect();
+	bool DropLoot(int LootType, bool Guided);
+	bool DropSoundtrack();
+	int m_RainbowSpeed; // controls the speed of the rainbow effect
+
 	//---------------------------------------------------------
 	// this is used for snapping so we know how we can clip the view for the player
 	vec2 m_ViewPos;
@@ -118,6 +124,83 @@ public:
 		int m_Min;
 		int m_Max;
 	} m_Latency;
+
+	// ngores
+	struct
+	{
+		// powers
+		bool m_HasRainbow;
+		bool m_HasRainbowEnabled;
+
+		bool m_HasPulse;
+		bool m_HasPulseEnabled;
+
+		bool m_HasSplash;
+		bool m_HasSplashEnabled;
+
+		bool m_HasExplosion;
+		bool m_HasExplosionEnabled;
+
+		bool m_HasSplashPistol;
+		bool m_HasSplashPistolEnabled;
+
+		bool m_HasExplosionPistol;
+		bool m_HasExplosionPistolEnabled;
+
+		bool m_HasStar;
+		bool m_HasStarEnabled;
+
+		bool m_HasAuraDot;
+		bool m_HasAuraDotEnabled;
+
+		bool m_HasAuraGun;
+		bool m_HasAuraGunEnabled;
+
+		bool m_HasAuraShotgun;
+		bool m_HasAuraShotgunEnabled;
+
+		bool m_HasTrail;
+		bool m_HasTrailEnabled;
+	} m_Powers;
+
+	struct
+	{
+		bool m_HasEmotion;
+		bool m_HasSoundtrack;
+		bool m_HasDropHeart;
+		bool m_HasDropShield;
+		bool m_HasDropNinjaSword;
+		bool m_HasGuidedHeart;
+		bool m_HasGuidedShield;
+		bool m_HasGuidedNinjaSword;
+		bool m_HasCarry;
+	} m_PowersActivable;
+
+	// extra data for powers
+	struct
+	{
+		int m_RainbowColor;
+		int m_RainbowPulse;
+		int m_RainbowColorNumber;
+
+		int m_LastCarryTick;
+		int m_CarryTimeRemaining;
+		CCharacter *m_CarryCharacter;
+
+		int m_LastEmotionTick;
+		int m_LastSoundtrackTick;
+		int m_LastDropTick;
+		int m_LastGunEffectTick;
+
+		int m_HasStarSpawned;
+		int m_HasAuraDotSpawned;
+		int m_HasAuraGunSpawned;
+		int m_HasAuraShotgunSpawned;
+		int m_HasTrailSpawned;
+	} m_PowersData;
+	
+	// flag system
+	int m_ShowFlag;
 
 private:
 	const uint32_t m_UniqueClientId;

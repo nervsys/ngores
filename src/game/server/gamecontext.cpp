@@ -292,6 +292,18 @@ void CGameContext::CreateHammerHit(vec2 Pos, CClientMask Mask)
 	}
 }
 
+// ngores
+void CGameContext::CreateExplosionEvent(vec2 Pos, CClientMask Mask)
+{
+	// create the event
+	CNetEvent_Explosion *pEvent = (CNetEvent_Explosion *)m_Events.Create(NETEVENTTYPE_EXPLOSION, sizeof(CNetEvent_Explosion), Mask);
+	if(pEvent)
+	{
+		pEvent->m_X = (int)Pos.x;
+		pEvent->m_Y = (int)Pos.y;
+	}
+}
+
 void CGameContext::CreateExplosion(vec2 Pos, int Owner, int Weapon, bool NoDamage, int ActivatedTeam, CClientMask Mask)
 {
 	// create the event
@@ -2248,6 +2260,10 @@ void CGameContext::OnMessage(int MsgId, CUnpacker *pUnpacker, int ClientId)
 	{
 		OnStartInfoNetMessage(static_cast<CNetMsg_Cl_StartInfo *>(pRawMsg), ClientId);
 	}
+
+	// flag system
+	if (g_Config.m_SvShowRecordFlag)
+		m_pController->UpdateRecordFlag();
 }
 
 void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, const CUnpacker *pUnpacker)
@@ -4001,6 +4017,16 @@ void CGameContext::RegisterDDRaceCommands()
 
 void CGameContext::RegisterChatCommands()
 {
+
+	// ngores
+	Console()->Register("cry", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConCry, this, "Execute cry emote");
+	Console()->Register("angry", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConAngry, this, "Execute angry emote");
+	Console()->Register("happy", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConHappy, this, "Execute happy emote");
+	Console()->Register("heart", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConHeart, this, "Execute heart emote");
+	Console()->Register("shield", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShield, this, "Execute shield emote");
+
+	//
+
 	Console()->Register("credits", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConCredits, this, "Shows the credits of the DDNet mod");
 	Console()->Register("rules", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConRules, this, "Shows the server rules");
 	Console()->Register("emote", "?s[emote name] i[duration in seconds]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConEyeEmote, this, "Sets your tee's eye emote");

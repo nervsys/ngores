@@ -311,6 +311,7 @@ public:
 	void SendLogLine(const CLogMessage *pMessage);
 	void SetRconCid(int ClientId) override;
 	int GetAuthedState(int ClientId) const override;
+	bool IsAuthed(int ClientId); // ngores complement
 	bool IsRconAuthed(int ClientId) const override;
 	bool IsRconAuthedAdmin(int ClientId) const override;
 	const char *GetAuthName(int ClientId) const override;
@@ -428,6 +429,23 @@ public:
 	void StopDemos() override;
 
 	int Run();
+
+	// ngores
+	static void ConRainbow(IConsole::IResult *pResult, void *pUser);
+	static void ConStars(IConsole::IResult *pResult, void *pUserData);
+	static void ConAuraShotgun(IConsole::IResult *pResult, void *pUserData);
+	static void ConAuraGun(IConsole::IResult *pResult, void *pUserData);
+	static void ConAuraDot(IConsole::IResult *pResult, void *pUserData);
+	static void ConSplash(IConsole::IResult *pResult, void *pUserData);
+	static void ConExplosion(IConsole::IResult *pResult, void *pUserData);
+	static void ConTrail(IConsole::IResult *pResult, void *pUserData);
+	static void ConPulse(IConsole::IResult *pResult, void *pUserData);
+	static void ConSoundtrack(IConsole::IResult *pResult, void *pUserData);
+
+	static void ConGuidedHeart(IConsole::IResult *pResult, void *pUserData);
+	static void ConGuidedShield(IConsole::IResult *pResult, void *pUserData);
+	static void ConGuidedNinjaSword(IConsole::IResult *pResult, void *pUserData);
+	
 
 	static void ConKick(IConsole::IResult *pResult, void *pUser);
 	static void ConStatus(IConsole::IResult *pResult, void *pUser);

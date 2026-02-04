@@ -784,3 +784,28 @@ MACRO_CONFIG_INT(ClVideoRecorderFPS, cl_video_recorder_fps, 60, 1, 1000, CFGFLAG
 /*
  * Add config variables for mods below this comment to avoid merge conflicts.
  */
+
+// record flag
+MACRO_CONFIG_INT(SvShowRecordFlag, sv_show_record_flag, 1, 0, 1, CFGFLAG_SERVER, "Activate the record flag for the record holder.")
+
+// loot
+MACRO_CONFIG_INT(SvKogGrenadeTele, sv_kog_grenade_tele, 0, 0, 1, CFGFLAG_GAME | CFGFLAG_SERVER, "Activate gores grenade teleport (kog alias)")
+MACRO_CONFIG_INT(SvGoresGrenadeTele, sv_gores_grenade_tele, 0, 0, 1, CFGFLAG_GAME | CFGFLAG_SERVER, "Activate gores grenade teleport")
+
+MACRO_CONFIG_INT(SvEffectGunInterval, sv_gun_interval, 2, 0, 999, CFGFLAG_GAME | CFGFLAG_SERVER, "Time interval between gun effect activation (splash & explosion)")
+MACRO_CONFIG_INT(SvEffectLootInterval, sv_loot_interval, 15, 0, 999, CFGFLAG_GAME | CFGFLAG_SERVER, "Time interval between drop effect activation (all drop types)")
+MACRO_CONFIG_INT(SvEffectEmotionInterval, sv_emotion_interval, 4, 0, 999, CFGFLAG_GAME | CFGFLAG_SERVER, "Time interval between emotion effect activation (all emotion types, and this interval only apply to sound)")
+MACRO_CONFIG_INT(SvEffectSoundtrackInterval, sv_soundtrack_interval, 60, 0, 999, CFGFLAG_GAME | CFGFLAG_SERVER, "Time interval between soundtrack effect activation")
+MACRO_CONFIG_INT(SvEffectCarryInterval, sv_carry_interval, 180, 0, 999, CFGFLAG_GAME | CFGFLAG_SERVER, "Time interval between carry effect activation")
+
+MACRO_CONFIG_INT(SvEffectLootDuration, sv_loot_duration, 600, 0, 999, CFGFLAG_GAME | CFGFLAG_SERVER, "Duration/Lifetime for loot effect (seconds)")
+MACRO_CONFIG_INT(SvEffectCarryDuration, sv_carry_duration, 999, 0, 999, CFGFLAG_GAME | CFGFLAG_SERVER, "Duration for carry effect (seconds)")
+
+MACRO_CONFIG_INT(SvEffectCarryWithRace, sv_carry_with_race, 1, 0, 1, CFGFLAG_GAME | CFGFLAG_SERVER, "Enable carry power even with race started (considered cheat)")
+
+MACRO_CONFIG_INT(SvEffectGuidedLootSpeed, sv_guided_loot_speed, 8, 1, 64, CFGFLAG_GAME | CFGFLAG_SERVER, "Guided loot traveling speed (8 = default)")
+MACRO_CONFIG_INT(SvEffectGuidedLootDetection, sv_guided_loot_detection, 1200, 120, 12000, CFGFLAG_GAME | CFGFLAG_SERVER, "Guided loot detection area distance (1200 = default)")
+
+MACRO_CONFIG_INT(SvEffectAuraDotAmount, sv_aura_dot_amount, 3, 1, 64, CFGFLAG_GAME | CFGFLAG_SERVER, "Amount of aura dots around the player (3 = default)")
+MACRO_CONFIG_INT(SvEffectAuraGunAmount, sv_aura_gun_amount, 3, 1, 64, CFGFLAG_GAME | CFGFLAG_SERVER, "Amount of aura guns around the player (3 = default)")
+MACRO_CONFIG_INT(SvEffectAuraShotgunAmount, sv_aura_shotgun_amount, 3, 1, 64, CFGFLAG_GAME | CFGFLAG_SERVER, "Amount of aura shotguns around the player (3 = default)")
