@@ -46,6 +46,7 @@ IGameController::IGameController(class CGameContext *pGameServer) :
 	// ngores
 	m_CurrentRecordHolder[0] = 0;
 	m_pRecordFlagChar = NULL;
+	g_RecordHolderName.clear(); // reset record holder
 }
 
 IGameController::~IGameController() = default;
