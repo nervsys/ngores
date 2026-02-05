@@ -14,8 +14,8 @@
 #include <game/server/score.h>
 #include <game/version.h>
 
-#define GAME_TYPE_NAME "DDraceNetwork"
-#define TEST_TYPE_NAME "TestDDraceNetwork"
+#define GAME_TYPE_NAME "Gores"
+#define TEST_TYPE_NAME "TestGores"
 
 CGameControllerDDNet::CGameControllerDDNet(class CGameContext *pGameServer) :
 	IGameController(pGameServer)
