@@ -411,3 +411,26 @@ void CScore::GetSaves(int ClientId)
 		return;
 	ExecPlayerThread(CScoreWorker::GetSaves, "get saves", ClientId, "", 0);
 }
+
+void CScore::LoadLogin(int ClientId,
+                       const char *pUsername,
+                       const char *pPassword)
+{
+    // create the result
+    auto pResult = NewSqlPlayerResult(ClientId);
+    if(!pResult)
+        return;
+
+    // create the request
+    auto Tmp = std::make_unique<CSqlLoginRequest>(pUsername, pPassword, pResult);
+
+    str_copy(Tmp->m_aMap, Server()->GetMapName(), sizeof(Tmp->m_aMap));
+    str_copy(Tmp->m_aServer, g_Config.m_SvSqlServerName, sizeof(Tmp->m_aServer));
+    str_copy(Tmp->m_aRequestingPlayer, Server()->ClientName(ClientId), sizeof(Tmp->m_aRequestingPlayer));
+    Tmp->m_Offset = 0; // or other value if needs
+
+    // execute the pool using helper
+    m_pPool->Execute(CScoreWorker::LoadLoginThread, std::move(Tmp), "login thread");
+}
+
+

@@ -43,6 +43,9 @@ public:
 
 	CPlayerData *PlayerData(int Id) { return &m_aPlayerData[Id]; }
 
+	// ngores
+	void LoadLogin(int ClientId, const char *pUsername, const char *pPasswordHash);
+
 	void LoadBestTime();
 	void LoadMapInfo();
 	void MapInfo(int ClientId, const char *pMapName);

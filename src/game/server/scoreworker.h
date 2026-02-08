@@ -86,6 +86,7 @@ struct CScoreLoadBestTimeResult : ISqlResult
 	bool m_Completed = false;
 };
 
+
 struct CSqlLoadBestTimeRequest : ISqlData
 {
 	CSqlLoadBestTimeRequest(std::shared_ptr<CScoreLoadBestTimeResult> pResult) :
@@ -113,6 +114,24 @@ struct CSqlPlayerRequest : ISqlData
 	int m_Offset;
 	char m_aServer[5];
 };
+
+struct CSqlLoginRequest : public CSqlPlayerRequest
+{
+    char m_aUsername[64];
+    char m_aPassword[65];
+
+    CSqlLoginRequest(
+        const char *pUsername,
+        const char *pPassword,
+        std::shared_ptr<CScorePlayerResult> pResult
+    )
+        : CSqlPlayerRequest(pResult)
+    {
+        str_copy(m_aUsername, pUsername, sizeof(m_aUsername));
+        str_copy(m_aPassword, pPassword, sizeof(m_aPassword));
+    }
+};
+
 
 struct CScoreRandomMapResult : ISqlResult
 {
@@ -308,6 +327,12 @@ struct CScoreWorker
 {
 	// ngores
 	static bool Init(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
+	static bool LoadLoginThread(
+    IDbConnection *pSqlServer,
+    const ISqlData *pGameData,
+    char *pError,
+    int ErrorSize);
+
 	//
 
 	static bool LoadBestTime(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);

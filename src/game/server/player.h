@@ -62,6 +62,10 @@ public:
 	void SpectatePlayerName(const char *pName);
 
 	// ngores
+	bool IsLogged() const { return m_IsLogged; }
+    void SetLogged(bool Logged) { m_IsLogged = Logged; }
+	bool m_IsLogged; // flag
+
 	void ProcessPauseEffect();
 	bool DropLoot(int LootType, bool Guided);
 	bool DropSoundtrack();
@@ -126,6 +130,12 @@ public:
 	} m_Latency;
 
 	// ngores
+	char m_aLoginName[32];
+	bool m_FirstTick = true;
+
+	int m_LoginTries = 0;
+	int m_LoginCooldown = 0;
+
 	struct
 	{
 		// powers
@@ -229,6 +239,7 @@ private:
 	int m_OverrideEmote;
 	int m_OverrideEmoteReset;
 	bool m_Halloween;
+
 
 public:
 	enum

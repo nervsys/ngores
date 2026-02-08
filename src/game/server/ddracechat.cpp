@@ -2688,3 +2688,29 @@ void CGameContext::ConShield(IConsole::IResult *pResult, void *pUserData)
 
 	ExecuteDrop(pResult, pUserData, EMOTICON_EYES, EMOTE_HAPPY, POWERUP_ARMOR, false);
 }
+
+void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)
+{
+    CGameContext *pSelf = (CGameContext *)pUserData;
+
+    if(!CheckClientId(pResult->m_ClientId))
+        return;
+
+    if(pResult->NumArguments() < 2)
+    {
+        pSelf->Console()->Print(IConsole::OUTPUT_LEVEL_STANDARD,
+            "chatresp",
+            "Example: /login <user> <pass>");
+        return;
+    }
+
+    CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+    if(!pPlayer)
+        return;
+
+    const char *pUsername = pResult->GetString(0);
+    const char *pPassword = pResult->GetString(1);
+
+    // call score to validate login
+    pSelf->m_pScore->LoadLogin(pResult->m_ClientId, pUsername, pPassword);
+}

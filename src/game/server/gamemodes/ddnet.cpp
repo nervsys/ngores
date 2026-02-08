@@ -192,6 +192,10 @@ void CGameControllerDDNet::OnPlayerConnect(CPlayer *pPlayer)
 
 	if(!Server()->ClientPrevIngame(ClientId))
 	{
+		if (g_Config.m_SvNeedsLogin) {
+			// move to spectator
+			pPlayer->SetTeam(TEAM_SPECTATORS);
+		}
 		char aBuf[512];
 		str_format(aBuf, sizeof(aBuf), "'%s' entered and joined the %s", Server()->ClientName(ClientId), GetTeamName(pPlayer->GetTeam()));
 		GameServer()->SendChat(-1, TEAM_ALL, aBuf, -1, CGameContext::FLAG_SIX);

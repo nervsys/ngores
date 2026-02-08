@@ -18,8 +18,10 @@
 #include <generated/protocol.h>
 
 #include <game/mapitems.h>
-#include <game/server/score.h>
 #include <game/teamscore.h>
+
+#include "scoreworker.h" // CScoreLoadBestTimeResult
+
 
 #include <string>
 std::string g_RecordHolderName = "";
@@ -740,6 +742,10 @@ CClientMask IGameController::GetMaskForPlayerWorldEvent(int Asker, int ExceptId)
 
 void IGameController::DoTeamChange(CPlayer *pPlayer, int Team, bool DoChatMsg)
 {
+	if (g_Config.m_SvNeedsLogin && !pPlayer->IsLogged()) {
+		return;
+	}
+
 	if(!IsValidTeam(Team))
 		return;
 

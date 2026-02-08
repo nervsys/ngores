@@ -10,6 +10,7 @@
 
 #include <cmath>
 
+#include "score.h"
 #include "gamecontroller.h"
 
 // "6b407e81-8b77-3e04-a207-8da17f37d000"
@@ -1951,4 +1952,87 @@ bool CScoreWorker::GetSaves(IDbConnection *pSqlServer, const ISqlData *pGameData
 			pData->m_aMap, aLastSavedString);
 	}
 	return true;
+}
+
+bool CScoreWorker::LoadLoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize)
+{
+    // safe cast
+    const auto *pData = dynamic_cast<const CSqlLoginRequest *>(pGameData);
+    if(!pData)
+    {
+        str_copy(pError, "Invalid login request", ErrorSize);
+        dbg_msg("login", "Invalid login request cast");
+        return false;
+    }
+
+    auto *pResult = dynamic_cast<CScorePlayerResult *>(pGameData->m_pResult.get());
+    if(!pResult)
+    {
+        str_copy(pError, "Invalid result container", ErrorSize);
+        dbg_msg("login", "Invalid result container");
+        return false;
+    }
+
+    // prepare the query
+    char aBuf[512];
+    str_format(aBuf, sizeof(aBuf),
+        "SELECT IFNULL(Password,'') FROM %s_users WHERE Username = ?",
+        pSqlServer->GetPrefix());
+
+    dbg_msg("login", "Preparing statement: %s", aBuf);
+
+    if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+    {
+        dbg_msg("login", "PrepareStatement failed for username '%s': %s",
+                pData->m_aUsername, pError);
+        return false;
+    }
+
+    // username bind
+    pSqlServer->BindString(1, pData->m_aUsername);
+    dbg_msg("login", "Bound username: '%s'", pData->m_aUsername);
+
+    // exec the query
+    bool End;
+    if(!pSqlServer->Step(&End, pError, ErrorSize))
+    {
+        str_copy(pResult->m_Data.m_aaMessages[0],
+                 "Database query failed.",
+                 sizeof(pResult->m_Data.m_aaMessages[0]));
+        dbg_msg("login", "Step() failed: %s", pError);
+        return true;
+    }
+
+    if(End)
+    {
+        // user not found
+        str_copy(pResult->m_Data.m_aaMessages[0],
+                 "Invalid username or password.",
+                 sizeof(pResult->m_Data.m_aaMessages[0]));
+        dbg_msg("login", "Username '%s' not found", pData->m_aUsername);
+        return true;
+    }
+ 	dbg_msg("login", "Username found: %s", pData->m_aUsername);
+    // we can get the pass
+    char aDbPass[256];
+    pSqlServer->GetString(1, aDbPass, sizeof(aDbPass)); // coluna 1 = Password
+    dbg_msg("login", "Fetched password from DB: '%s'", aDbPass);
+
+    // compare the password
+    if(str_comp(aDbPass, pData->m_aPassword) != 0)
+    {
+        str_copy(pResult->m_Data.m_aaMessages[0],
+                 "Invalid username or password.",
+                 sizeof(pResult->m_Data.m_aaMessages[0]));
+        dbg_msg("login", "Password mismatch for username '%s'", pData->m_aUsername);
+        return true;
+    }
+
+    // login success
+    str_copy(pResult->m_Data.m_aaMessages[0],
+             "Login successful.",
+             sizeof(pResult->m_Data.m_aaMessages[0]));
+    dbg_msg("login", "User '%s' logged in successfully", pData->m_aUsername);
+
+    return true;
 }

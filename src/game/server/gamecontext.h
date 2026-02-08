@@ -454,6 +454,11 @@ private:
 	bool m_VoteWillPass;
 	CScore *m_pScore;
 
+	// ngores
+
+	static void ConLogin(IConsole::IResult *pResult, void *pUserData);
+
+
 	// DDRace Console Commands
 
 	static void ConKillPlayer(IConsole::IResult *pResult, void *pUserData);

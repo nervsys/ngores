@@ -4025,6 +4025,8 @@ void CGameContext::RegisterChatCommands()
 	Console()->Register("heart", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConHeart, this, "Execute heart emote");
 	Console()->Register("shield", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConShield, this, "Execute shield emote");
 
+	Console()->Register("login", "s[username] s[password]", CFGFLAG_CHAT | CFGFLAG_SERVER, ConLogin, this, "Enter your credentials to log in to your account");
+
 	//
 
 	Console()->Register("credits", "", CFGFLAG_CHAT | CFGFLAG_SERVER, ConCredits, this, "Shows the credits of the DDNet mod");

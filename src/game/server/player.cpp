@@ -38,6 +38,7 @@ CPlayer::CPlayer(CGameContext *pGameServer, uint32_t UniqueClientId, int ClientI
 	Reset();
 	GameServer()->Antibot()->OnPlayerInit(m_ClientId);
 	m_RainbowSpeed = 1; // default speed
+	m_IsLogged = false;
 }
 
 CPlayer::~CPlayer()
@@ -235,6 +236,8 @@ static int PlayerFlags_SixToSeven(int Flags)
 
 void CPlayer::Tick()
 {
+
+
 	if(m_ScoreQueryResult != nullptr && m_ScoreQueryResult->m_Completed && m_SentSnaps >= 3)
 	{
 		ProcessScoreResult(*m_ScoreQueryResult);
@@ -1099,6 +1102,18 @@ void CPlayer::ProcessScoreResult(CScorePlayerResult &Result)
 				if(aMessage[0] == 0)
 					break;
 				GameServer()->SendChatTarget(m_ClientId, aMessage);
+
+				// ngores
+				if(str_comp(aMessage, "Login successful.") == 0)
+				{
+					SetLogged(true);
+					// remove from spectator
+					SetTeam(TEAM_GAME);
+					KillCharacter(WEAPON_SELF);
+					Respawn();
+
+					dbg_msg("login", "Player %d marked as logged in", m_ClientId);
+				}
 			}
 			break;
 		case CScorePlayerResult::ALL:
