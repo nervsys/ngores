@@ -2692,6 +2692,16 @@ void CGameContext::ConShield(IConsole::IResult *pResult, void *pUserData)
 void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)
 {
     CGameContext *pSelf = (CGameContext *)pUserData;
+	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
+
+	if (!pPlayer)
+		return;
+
+	const int MaxTries = 3;
+    const int LockSeconds = 30;
+
+	int64_t Now = pSelf->Server()->Tick();
+	int TickSpeed = pSelf->Server()->TickSpeed();
 
     if(!CheckClientId(pResult->m_ClientId))
         return;
@@ -2704,8 +2714,37 @@ void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)
         return;
     }
 
-    CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
-    if(!pPlayer)
+	if (++pPlayer->m_LoginTries >= MaxTries) 
+	{ 
+		if (!pPlayer->m_LoginLocked) {
+			pPlayer->m_LoginLocked = true; 
+			pPlayer->m_LoginCooldown = pSelf->Server()->Tick() + LockSeconds * pSelf->Server()->TickSpeed(); 
+		}
+	}
+
+	// check lock
+	if (pPlayer->m_LoginLocked)
+	{
+    	if (Now < pPlayer->m_LoginCooldown)
+    	{
+        	int SecondsLeft =
+            	(pPlayer->m_LoginCooldown - Now) / TickSpeed;
+
+        	char aBuf[128];
+        	str_format(aBuf, sizeof(aBuf),
+            	"Locked for %d more seconds.",
+            	SecondsLeft);
+
+        	pSelf->SendChatTarget(pResult->m_ClientId, aBuf);
+        	return;
+    	}
+
+    // unlock
+    pPlayer->m_LoginLocked = false;
+    pPlayer->m_LoginTries = 0;
+	}
+
+    if (!pPlayer)
         return;
 
     const char *pUsername = pResult->GetString(0);

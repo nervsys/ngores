@@ -135,6 +135,7 @@ public:
 
 	int m_LoginTries = 0;
 	int m_LoginCooldown = 0;
+	bool m_LoginLocked;
 
 	struct
 	{

@@ -38,7 +38,11 @@ CPlayer::CPlayer(CGameContext *pGameServer, uint32_t UniqueClientId, int ClientI
 	Reset();
 	GameServer()->Antibot()->OnPlayerInit(m_ClientId);
 	m_RainbowSpeed = 1; // default speed
+
 	m_IsLogged = false;
+	m_LoginTries = 0;
+	m_LoginLocked = false;
+
 }
 
 CPlayer::~CPlayer()
