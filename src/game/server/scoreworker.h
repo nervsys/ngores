@@ -119,16 +119,19 @@ struct CSqlLoginRequest : public CSqlPlayerRequest
 {
     char m_aUsername[64];
     char m_aPassword[65];
+	char m_aIP[NETADDR_MAXSTRSIZE]; // store the ip address
 
     CSqlLoginRequest(
         const char *pUsername,
         const char *pPassword,
+		const char *pIP,
         std::shared_ptr<CScorePlayerResult> pResult
     )
         : CSqlPlayerRequest(pResult)
     {
         str_copy(m_aUsername, pUsername, sizeof(m_aUsername));
         str_copy(m_aPassword, pPassword, sizeof(m_aPassword));
+		str_copy(m_aIP, pIP, sizeof(m_aIP));
     }
 };
 
@@ -326,13 +329,10 @@ struct CTeamrank
 struct CScoreWorker
 {
 	// ngores
+	static bool SaveIP(IDbConnection *pSqlServer, const ISqlData *pGameData, const char *pUsername, const char *pIP, char *pError = nullptr, int ErrorSize = 0);
+	static bool CanAutoLogin(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	static bool Init(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
-	static bool LoadLoginThread(
-    IDbConnection *pSqlServer,
-    const ISqlData *pGameData,
-    char *pError,
-    int ErrorSize);
-
+	static bool LoadLoginThread(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);
 	//
 
 	static bool LoadBestTime(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize);

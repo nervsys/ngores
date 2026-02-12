@@ -209,7 +209,9 @@ void CGameControllerDDNet::OnPlayerConnect(CPlayer *pPlayer)
 	char aBuf[128];
 	str_format(aBuf, sizeof(aBuf), "Welcome, '%s'!", Server()->ClientName(ClientId));
 	GameServer()->SendBroadcast(aBuf, ClientId);
-	}	
+	}
+
+
 }
 
 void CGameControllerDDNet::OnPlayerDisconnect(CPlayer *pPlayer, const char *pReason)

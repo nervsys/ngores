@@ -2753,6 +2753,11 @@ void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)
     const char *pUsername = pResult->GetString(0);
     const char *pPassword = pResult->GetString(1);
 
+	// gets player ip
+	char aIP[NETADDR_MAXSTRSIZE];
+	const NETADDR *pAddr = pSelf->Server()->ClientAddr(pResult->m_ClientId);
+	net_addr_str(pAddr, aIP, sizeof(aIP), false);
+
     // call score to validate login
-    pSelf->m_pScore->LoadLogin(pResult->m_ClientId, pUsername, pPassword);
+    pSelf->m_pScore->LoadLogin(pResult->m_ClientId, pUsername, pPassword, aIP);
 }

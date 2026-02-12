@@ -139,7 +139,8 @@ void CScore::LoadMapInfo()
 }
 
 void CScore::LoadPlayerData(int ClientId, const char *pName)
-{
+{	
+	AutoLogin(ClientId, pName); // ngores
 	ExecPlayerThread(CScoreWorker::LoadPlayerData, "load player data", ClientId, pName, 0);
 }
 
@@ -412,9 +413,7 @@ void CScore::GetSaves(int ClientId)
 	ExecPlayerThread(CScoreWorker::GetSaves, "get saves", ClientId, "", 0);
 }
 
-void CScore::LoadLogin(int ClientId,
-                       const char *pUsername,
-                       const char *pPassword)
+void CScore::LoadLogin(int ClientId, const char *pUsername, const char *pPassword, const char *pIP)
 {
     // create the result
     auto pResult = NewSqlPlayerResult(ClientId);
@@ -422,15 +421,26 @@ void CScore::LoadLogin(int ClientId,
         return;
 
     // create the request
-    auto Tmp = std::make_unique<CSqlLoginRequest>(pUsername, pPassword, pResult);
-
-    str_copy(Tmp->m_aMap, Server()->GetMapName(), sizeof(Tmp->m_aMap));
-    str_copy(Tmp->m_aServer, g_Config.m_SvSqlServerName, sizeof(Tmp->m_aServer));
-    str_copy(Tmp->m_aRequestingPlayer, Server()->ClientName(ClientId), sizeof(Tmp->m_aRequestingPlayer));
-    Tmp->m_Offset = 0; // or other value if needs
+    auto Tmp = std::make_unique<CSqlLoginRequest>(pUsername, pPassword, pIP, pResult);
 
     // execute the pool using helper
     m_pPool->Execute(CScoreWorker::LoadLoginThread, std::move(Tmp), "login thread");
 }
 
+void CScore::AutoLogin(int ClientId, const char *pName) 
+{
+    // gets the player ip
+    const NETADDR *pAddr = Server()->ClientAddr(ClientId);
+    char aIP[NETADDR_MAXSTRSIZE];
+    net_addr_str(pAddr, aIP, sizeof(aIP), false);
 
+	// create the result
+    auto pResult = NewSqlPlayerResult(ClientId);
+    if(!pResult)
+        return;
+
+    // create the request
+    auto Tmp = std::make_unique<CSqlLoginRequest>("", "", aIP, pResult);
+
+	m_pPool->Execute(CScoreWorker::CanAutoLogin, std::move(Tmp), "load login data");
+}

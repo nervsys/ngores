@@ -265,6 +265,7 @@ bool CScoreWorker::LoadPlayerData(IDbConnection *pSqlServer, const ISqlData *pGa
 		if(sscanf(aCurrent, "%d-%d-%d", &CurrentYear, &CurrentMonth, &CurrentDay) == 3 && sscanf(aStamp, "%d-%d-%d", &StampYear, &StampMonth, &StampDay) == 3 && CurrentMonth == StampMonth && CurrentDay == StampDay)
 			pResult->m_Data.m_Info.m_Birthday = CurrentYear - StampYear;
 	}
+
 	return true;
 }
 
@@ -2012,6 +2013,7 @@ bool CScoreWorker::LoadLoginThread(IDbConnection *pSqlServer, const ISqlData *pG
         dbg_msg("login", "Username '%s' not found", pData->m_aUsername);
         return true;
     }
+
  	dbg_msg("login", "Username found: %s", pData->m_aUsername);
     // we can get the pass
     char aDbPass[256];
@@ -2033,6 +2035,92 @@ bool CScoreWorker::LoadLoginThread(IDbConnection *pSqlServer, const ISqlData *pG
              "Login successful.",
              sizeof(pResult->m_Data.m_aaMessages[0]));
     dbg_msg("login", "User '%s' logged in successfully", pData->m_aUsername);
+		
+	// save the ip address in database
+	SaveIP(pSqlServer, pGameData, pData->m_aUsername, pData->m_aIP, pError, sizeof(pError));
+    return true;
+}
 
+bool CScoreWorker::CanAutoLogin(IDbConnection *pSqlServer, const ISqlData *pGameData, char *pError, int ErrorSize) 
+{
+	dbg_msg("login", "CanAutoLogin is running!");
+
+    // safe cast
+    const auto *pData = dynamic_cast<const CSqlLoginRequest *>(pGameData);
+    if(!pData)
+    {
+        str_copy(pError, "Invalid login request", ErrorSize);
+        dbg_msg("login", "Invalid login request cast");
+        return false;
+    }
+
+    auto *pResult = dynamic_cast<CScorePlayerResult *>(pGameData->m_pResult.get());
+    if(!pResult)
+    {
+        str_copy(pError, "Invalid result container", ErrorSize);
+        dbg_msg("login", "Invalid result container");
+        return false;
+    }
+
+    char aBuf[512];
+    str_format(aBuf, sizeof(aBuf),
+               "SELECT COUNT(*) FROM %s_users WHERE LastIP = ?",
+               pSqlServer->GetPrefix());
+
+    if(!pSqlServer->PrepareStatement(aBuf, pError, ErrorSize))
+    {
+        dbg_msg("login", "PrepareStatement failed: %s", pError);
+        return false;
+    }
+
+    pSqlServer->BindString(1, pData->m_aIP);
+
+    bool End;
+    if(!pSqlServer->Step(&End, pError, ErrorSize))
+    {
+        dbg_msg("login", "Step() failed: %s", pError);
+        return false;
+    }
+
+    int Count = pSqlServer->GetInt(1);
+	
+    if(Count == 0)
+    {
+        dbg_msg("login", "IP not found in database.");
+        return false;
+    }
+    else if(Count > 1)
+    {
+        dbg_msg("login", "Multiple accounts with the same IP, cannot auto-login.");
+        return false;
+    }
+
+   // login success
+    str_copy(pResult->m_Data.m_aaMessages[0],
+             "Login successful.",
+             sizeof(pResult->m_Data.m_aaMessages[0]));
+    dbg_msg("login", "User '%s' logged in successfully", pData->m_aUsername);
+    return true;
+}
+
+bool CScoreWorker::SaveIP(IDbConnection *pSqlServer, const ISqlData *pGameData, const char *pUsername, const char *pIP, char *pError, int ErrorSize)
+{
+    char aUpdate[256];
+    str_format(aUpdate, sizeof(aUpdate),
+               "UPDATE %s_users SET LastIP = ? WHERE Username = ?",
+               pSqlServer->GetPrefix());
+
+    if(!pSqlServer->PrepareStatement(aUpdate, pError, ErrorSize))
+    {
+        dbg_msg("login", "PrepareStatement failed: %s", pError);
+        return false;
+    }
+
+    pSqlServer->BindString(1, pIP);
+    pSqlServer->BindString(2, pUsername);
+
+    pSqlServer->Step(nullptr, pError, ErrorSize);
+
+    dbg_msg("login", "Saved IP '%s' for username '%s'", pIP, pUsername);
     return true;
 }
