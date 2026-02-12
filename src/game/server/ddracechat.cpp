@@ -2694,8 +2694,11 @@ void CGameContext::ConLogin(IConsole::IResult *pResult, void *pUserData)
     CGameContext *pSelf = (CGameContext *)pUserData;
 	CPlayer *pPlayer = pSelf->m_apPlayers[pResult->m_ClientId];
 
-	if (!pPlayer)
+	if (pPlayer->m_IsLogged) {
+		pSelf->SendChatTarget(pResult->m_ClientId, 
+			"You're already logged in.");
 		return;
+	}
 
 	const int MaxTries = 3;
     const int LockSeconds = 30;
