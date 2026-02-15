@@ -38,6 +38,7 @@
 #include <game/version.h>
 
 #include <vector>
+#include <regex>
 
 // Not thread-safe!
 class CClientChatLogger : public ILogger
@@ -70,6 +71,23 @@ void CClientChatLogger::Log(const CLogMessage *pMessage)
 	{
 		m_pOuterLogger->Log(pMessage);
 	}
+}
+
+std::string CGameContext::ChatProtection(const std::string &msg) 
+{
+	std::string message = msg;
+
+	// regex for generic urls (include .xyz, .client, .agency, ...)
+	std::regex urls(R"((https?:\/\/)?(www\.)?([a-zA-Z0-9\-]+\.)+[a-zA-Z]{2,}(\/\S*)?)");
+
+	// regex for ip address
+	std::regex ip(R"((?:https?:\/\/|udp:\/\/)?(?:\d{1,3}\.){3}\d{1,3}(?::\d{1,5})?)");
+
+	// replaces all to
+	message = std::regex_replace(message, urls, "[LINK]");
+	message = std::regex_replace(message, ip, "[IP]");
+
+	return message;
 }
 
 CGameContext::CGameContext(bool Resetting) :
@@ -2367,6 +2385,15 @@ void CGameContext::OnSayNetMessage(const CNetMsg_Cl_Say *pMsg, int ClientId, con
 		pPlayer->UpdatePlaytime();
 		char aCensoredMessage[256];
 		CensorMessage(aCensoredMessage, pMsg->m_pMessage, sizeof(aCensoredMessage));
+
+		// ngores
+		if (g_Config.m_SvChatProtection) {
+			std::string Msg = pMsg->m_pMessage;
+			std::string FilteredMsg = ChatProtection(Msg);
+			str_copy(aCensoredMessage, FilteredMsg.c_str(), sizeof(aCensoredMessage));
+		}
+
+		// send the message
 		SendChat(ClientId, Team, aCensoredMessage, ClientId);
 	}
 }

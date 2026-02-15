@@ -216,6 +216,7 @@ public:
 
 	// ngores
 	static void ExecuteDrop(IConsole::IResult *pResult, void *pUserData, int Emoticon, int Emote, int DropType, bool Guided);
+	static std::string ChatProtection(const std::string &msg);
 	//
 	
 	IServer *Server() const { return m_pServer; }

@@ -785,6 +785,9 @@ MACRO_CONFIG_INT(ClVideoRecorderFPS, cl_video_recorder_fps, 60, 1, 1000, CFGFLAG
  * Add config variables for mods below this comment to avoid merge conflicts.
  */
 
+// chat
+MACRO_CONFIG_INT(SvChatProtection, sv_chat_protection, 0, 0, 1, CFGFLAG_SERVER, "Enable chat protection for prevent urls and ips")
+
 // login
 MACRO_CONFIG_INT(SvNeedsLogin, sv_needs_login, 0, 0, 1, CFGFLAG_SERVER, "Turn on or off login")
 
